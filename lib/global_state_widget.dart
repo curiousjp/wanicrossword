@@ -4,10 +4,13 @@ import 'crossword_controller.dart';
 
 typedef ScoringCallback = int Function();
 typedef FocusingCallback = void Function(String, bool);
+typedef ResetCallback = void Function();
 
 class GlobalStateWidget extends InheritedWidget {
   final Map<String, FocusingCallback> focusCallbackMap = {};
-  final List<ScoringCallback> scoringCallbacks = [];
+  final Map<String, String> cellValues = {};
+  final Set<ScoringCallback> scoringCallbacks = {};
+  final Set<ResetCallback> resetCallbacks = {};
   final crosswordController = CrosswordController();
 
   GlobalStateWidget({Key? key, required Widget child})
@@ -20,5 +23,7 @@ class GlobalStateWidget extends InheritedWidget {
   @override
   bool updateShouldNotify(GlobalStateWidget oldWidget) =>
       focusCallbackMap != oldWidget.focusCallbackMap ||
-      crosswordController != oldWidget.crosswordController;
+      crosswordController != oldWidget.crosswordController ||
+      resetCallbacks != oldWidget.resetCallbacks ||
+      scoringCallbacks != oldWidget.scoringCallbacks;
 }

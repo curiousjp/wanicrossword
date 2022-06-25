@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:kana_kit/kana_kit.dart';
 
 import 'flow_direction.dart';
-import 'crossword_controller.dart';
 import 'global_state_widget.dart';
 
 // Some kanaKit helpers I didn't want to put anywhere else
@@ -48,12 +47,14 @@ class CrosswordCell extends StatefulWidget {
       {Key? key,
       required this.character,
       required this.identifier,
+      required this.startValue,
       this.note,
       this.right,
       this.down})
       : super(key: key);
 
   final String character;
+  final String startValue;
   final String identifier;
   final String? note;
 
@@ -66,23 +67,23 @@ class CrosswordCell extends StatefulWidget {
 
 class _CrosswordCellState extends State<CrosswordCell> {
   final _focusNode = FocusNode();
-  final _textController = TextEditingController(text: '');
+  late TextEditingController _textController;
+  Color _fillColor = Colors.transparent;
   TextEditingValue _previousTCV = const TextEditingValue();
 
-  Map<String, FocusingCallback>? _globalFocusCallbackMap;
-  CrosswordController? _globalCrosswordController;
+  GlobalStateWidget? _globalState;
 
   @override
   void initState() {
     super.initState();
+    _textController = TextEditingController(text: widget.startValue);
+    _previousTCV = _textController.value;
     _textController.addListener(_handleTextEvents);
+    _focusNode.addListener(_handleFocusEvents);
   }
 
   @override
   void dispose() {
-    if (_globalFocusCallbackMap != null) {
-      _globalFocusCallbackMap!.remove(_focusCallback);
-    }
     _focusNode.dispose();
     _textController.dispose();
     super.dispose();
@@ -97,13 +98,29 @@ class _CrosswordCellState extends State<CrosswordCell> {
     }
   }
 
-  int _score() {
+  int _handleScoreEvents() {
     if (_textController.text == widget.character) {
       return 1;
     } else {
       _textController.text = '';
       return 0;
     }
+  }
+
+  void _handleFocusEvents() {
+    if (_focusNode.hasFocus) {
+      setState(() {
+        _fillColor = Colors.amber;
+      });
+    } else {
+      setState(() {
+        _fillColor = Colors.transparent;
+      });
+    }
+  }
+
+  void _handleResetEvents() {
+    _textController.text = '';
   }
 
   void _handleTextEvents() {
@@ -113,8 +130,11 @@ class _CrosswordCellState extends State<CrosswordCell> {
     if (text == _previousTCV.text) {
       return;
     }
-    _previousTCV = _textController.value;
     if (text.isEmpty) {
+      _previousTCV = _textController.value;
+      if (_globalState != null) {
+        _globalState!.cellValues[widget.identifier] = '';
+      }
       return;
     }
 
@@ -144,25 +164,28 @@ class _CrosswordCellState extends State<CrosswordCell> {
           newText = newText.substring(0, 1);
         }
         textType = newTextType;
+        text = newText;
         // This will trigger _handleTextEvents once more
         // unless we disable the handler first...
         _textController.removeListener(_handleTextEvents);
         _textController.value = _textController.value.copyWith(
-            text: newText,
+            text: text,
             selection: TextSelection(
-                baseOffset: newText.length, extentOffset: newText.length),
+                baseOffset: text.length, extentOffset: text.length),
             composing: TextRange.empty);
         _textController.addListener(_handleTextEvents);
       }
     }
 
+    _previousTCV = _textController.value;
+    _globalState!.cellValues[widget.identifier] = text;
+
     // navigation
-    if (textType == targetType &&
-        _globalCrosswordController != null &&
-        _globalFocusCallbackMap != null) {
-      final flowDirection = _globalCrosswordController!.flowDirection;
-      FocusingCallback? nextDown = _globalFocusCallbackMap![widget.down];
-      FocusingCallback? nextRight = _globalFocusCallbackMap![widget.right];
+    if (textType == targetType && _globalState != null) {
+      final flowDirection = _globalState!.crosswordController.flowDirection;
+      FocusingCallback? nextDown = _globalState!.focusCallbackMap[widget.down];
+      FocusingCallback? nextRight =
+          _globalState!.focusCallbackMap[widget.right];
 
       if ((nextRight ?? nextDown) != null) {
         final nextPick = (flowDirection == FlowDirection.right)
@@ -171,11 +194,11 @@ class _CrosswordCellState extends State<CrosswordCell> {
 
         bool changedDirection = false;
         if (nextPick == nextDown && flowDirection != FlowDirection.down) {
-          _globalCrosswordController!.flowDirection = FlowDirection.down;
+          _globalState!.crosswordController.flowDirection = FlowDirection.down;
           changedDirection = true;
         } else if (nextPick == nextRight &&
             flowDirection != FlowDirection.right) {
-          _globalCrosswordController!.flowDirection = FlowDirection.right;
+          _globalState!.crosswordController.flowDirection = FlowDirection.right;
           changedDirection = true;
         }
         nextPick!(spill, changedDirection);
@@ -192,23 +215,22 @@ class _CrosswordCellState extends State<CrosswordCell> {
               border: Border.all(color: Colors.blueAccent)));
     }
 
-    _globalFocusCallbackMap = GlobalStateWidget.of(context)!.focusCallbackMap;
-    _globalCrosswordController =
-        GlobalStateWidget.of(context)!.crosswordController;
-    GlobalStateWidget.of(context)!.scoringCallbacks.add(_score);
-    _globalFocusCallbackMap![widget.identifier] = _focusCallback;
-    _textController.clear();
-
-    final numberIndicator = widget.note == null
-        ? const SizedBox.shrink()
-        : Align(
-            alignment: Alignment.topLeft,
-            child: Text(widget.note!, textAlign: TextAlign.left));
+    _globalState = GlobalStateWidget.of(context)!;
+    _globalState!.scoringCallbacks.add(_handleScoreEvents);
+    _globalState!.resetCallbacks.add(_handleResetEvents);
+    _globalState!.focusCallbackMap[widget.identifier] = _focusCallback;
 
     return Container(
-        decoration: BoxDecoration(border: Border.all(color: Colors.blueAccent)),
+        decoration: BoxDecoration(
+          color: _fillColor,
+          border: Border.all(color: Colors.blueAccent),
+        ),
         child: Stack(children: <Widget>[
-          numberIndicator,
+          widget.note == null
+              ? const SizedBox.shrink()
+              : Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(widget.note!, textAlign: TextAlign.left)),
           Align(
             alignment: Alignment.center,
             child: TextField(
@@ -219,10 +241,12 @@ class _CrosswordCellState extends State<CrosswordCell> {
               style: const TextStyle(color: Colors.black),
               focusNode: _focusNode,
               controller: _textController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 counterText: '',
                 border: InputBorder.none,
-                //helperText: widget.character,
+                helperText: _globalState!.crosswordController.showHints
+                    ? widget.character
+                    : null,
               ),
             ),
           )

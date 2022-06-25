@@ -11,7 +11,7 @@ class CrosswordController {
   CrosswordPuzzle? _currentPuzzle;
 
   FlowDirection flowDirection = FlowDirection.down;
-  bool showHints = true;
+  bool showHints = false;
 
   CrosswordController();
 

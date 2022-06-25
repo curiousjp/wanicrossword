@@ -43,6 +43,8 @@ class _MyHomePageState extends State<MyHomePage> {
     GlobalStateWidget.of(context)!.focusCallbackMap.clear();
     // burn the old scoring callbacks
     GlobalStateWidget.of(context)!.scoringCallbacks.clear();
+    // burn the reset callbacks
+    GlobalStateWidget.of(context)!.resetCallbacks.clear();
 
     // make the tiles
     final currentPuzzle =
@@ -58,6 +60,9 @@ class _MyHomePageState extends State<MyHomePage> {
       return CrosswordCell(
           character: entry.value,
           identifier: entry.key.toString(),
+          startValue:
+              GlobalStateWidget.of(context)!.cellValues[entry.key.toString()] ??
+                  "",
           note: (currentPuzzle.acrossClues.containsKey(offset) ||
                   currentPuzzle.downClues.containsKey(offset))
               ? offset.toString()
@@ -130,6 +135,11 @@ class _MyHomePageState extends State<MyHomePage> {
           IconButton(
               onPressed: () {
                 setState(() {
+                  GlobalStateWidget.of(context)!.cellValues.clear();
+                  for (var clearCallback
+                      in GlobalStateWidget.of(context)!.resetCallbacks) {
+                    clearCallback();
+                  }
                   GlobalStateWidget.of(context)!
                       .crosswordController
                       .layoutPuzzle();
@@ -137,6 +147,18 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               icon: const Icon(Icons.autorenew),
               tooltip: 'Layout Puzzle'),
+          IconButton(
+              onPressed: () {
+                final hintMode = GlobalStateWidget.of(context)!
+                    .crosswordController
+                    .showHints;
+                setState(() {
+                  GlobalStateWidget.of(context)!.crosswordController.showHints =
+                      !hintMode;
+                });
+              },
+              icon: const Icon(Icons.question_mark),
+              tooltip: 'Show Hints'),
           IconButton(
               onPressed: () async {
                 final popupController = TextEditingController(text: '');
