@@ -68,14 +68,6 @@ class CrosswordPuzzle {
     return result[0];
   }
 
-/*
-  void _printBoard() {
-    for (var y = 0; y < _sideLength; y++) {
-      print(_squares[y].map((x) => x == '' ? '_' : x).join(''));
-    }
-  }
-*/
-
   void _setSquareValue(int x, int y, String value) {
     if (x < 0 || x >= _sideLength || y < 0 || y >= _sideLength) {
       // pass;
@@ -112,16 +104,6 @@ class CrosswordPuzzle {
       final targetX = startX + deltaX * step;
       final targetY = startY + deltaY * step;
       final targetSquare = _getSquareValue(targetX, targetY);
-
-      // // an additional check is required when it is the first letter
-      // // to ensure it doesn't tee off from an existing word
-      // if (step == 0) {
-      //   if (orientation == FlowDirection.down) {
-      //     legalMove = legalMove && _isSquareEmpty(targetX, targetY - 1);
-      //   } else {
-      //     legalMove = legalMove && _isSquareEmpty(targetX - 1, targetY);
-      //   }
-      // }
 
       if (targetSquare == terminatedValue[step]) {
         // an intersection, a legal move
