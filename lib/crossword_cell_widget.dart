@@ -67,6 +67,7 @@ class CrosswordCell extends StatefulWidget {
 class _CrosswordCellState extends State<CrosswordCell> {
   final _focusNode = FocusNode();
   final _textController = TextEditingController(text: '');
+  TextEditingValue _previousTCV = const TextEditingValue();
 
   Map<String, FocusingCallback>? _globalFocusCallbackMap;
   CrosswordController? _globalCrosswordController;
@@ -87,10 +88,11 @@ class _CrosswordCellState extends State<CrosswordCell> {
     super.dispose();
   }
 
-  void _focusCallback(String spill) {
+  void _focusCallback(String spill, bool changedDirection) {
     _focusNode.requestFocus();
-    _textController.text = spill;
-    if (spill.isNotEmpty) {
+    // typing through
+    if (changedDirection == false) {
+      _textController.text = spill;
       _handleTextEvents();
     }
   }
@@ -107,11 +109,16 @@ class _CrosswordCellState extends State<CrosswordCell> {
   void _handleTextEvents() {
     String text = _textController.text;
 
+    // This is getting triggered by selection change events too
+    if (text == _previousTCV.text) {
+      return;
+    }
+    _previousTCV = _textController.value;
     if (text.isEmpty) {
       return;
     }
 
-    final clueType = detectKanaKitType(widget.character);
+    final targetType = detectKanaKitType(widget.character);
     var textType = detectKanaKitType(text);
     var spill = '';
 
@@ -119,35 +126,35 @@ class _CrosswordCellState extends State<CrosswordCell> {
     // type is katakana or hiragana - this is to stop it from getting turned
     // into ん and blocking kana like の / ノ.
     final blockConversion = (text == 'n' &&
-        (clueType == KanaKitType.h || clueType == KanaKitType.k));
+        (targetType == KanaKitType.h || targetType == KanaKitType.k));
 
     // Let's attempt coercion.
-    if (clueType != textType && blockConversion == false) {
+    if (targetType != textType && blockConversion == false) {
       // restore the 'n' workaround
       if (text == 'nn') {
         text = 'n';
       }
 
-      var newText = convertKanaKitType(text, clueType);
+      var newText = convertKanaKitType(text, targetType);
       final newTextType = detectKanaKitType(newText);
-      // Success
-      if (newTextType == clueType) {
+      // Success?
+      if (newTextType == targetType) {
         if (newText.length > 1) {
           spill = newText.substring(1);
           newText = newText.substring(0, 1);
         }
+        // This will trigger _handleTextEvents once more
         _textController.value = _textController.value.copyWith(
             text: newText,
             selection: TextSelection(
                 baseOffset: newText.length, extentOffset: newText.length),
             composing: TextRange.empty);
-        text = newText;
-        textType = newTextType;
+        return;
       }
     }
 
     // navigation
-    if (textType == clueType &&
+    if (textType == targetType &&
         _globalCrosswordController != null &&
         _globalFocusCallbackMap != null) {
       final flowDirection = _globalCrosswordController!.flowDirection;
@@ -159,12 +166,17 @@ class _CrosswordCellState extends State<CrosswordCell> {
             ? (nextRight ?? nextDown)
             : (nextDown ?? nextRight);
 
-        if (nextPick == nextDown) {
+        bool changedDirection = false;
+        if (nextPick == nextDown &&
+            _globalCrosswordController!.flowDirection != FlowDirection.down) {
           _globalCrosswordController!.flowDirection = FlowDirection.down;
-        } else {
+          changedDirection = true;
+        } else if (nextPick == nextRight &&
+            _globalCrosswordController!.flowDirection != FlowDirection.right) {
           _globalCrosswordController!.flowDirection = FlowDirection.right;
+          changedDirection = true;
         }
-        nextPick!(spill);
+        nextPick!(spill, changedDirection);
       }
     }
   }

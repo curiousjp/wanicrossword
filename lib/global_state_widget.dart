@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'crossword_controller.dart';
 
 typedef ScoringCallback = int Function();
-typedef FocusingCallback = void Function(String);
+typedef FocusingCallback = void Function(String, bool);
 
 class GlobalStateWidget extends InheritedWidget {
   final Map<String, FocusingCallback> focusCallbackMap = {};

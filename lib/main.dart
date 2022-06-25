@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'global_state_widget.dart';
 import 'crossword_cell_widget.dart';
 
+// note to self:
+// git push -u origin main
+// flutter pub global run peanut --extra-args "--base-href=/wanicrossword/"
+// git push origin --set-upstream gh-pages
+
 void main() {
   runApp(GlobalStateWidget(child: const MyApp()));
 }
@@ -76,7 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     GlobalStateWidget.of(context)!
                         .crosswordController
                         .flowDirection = FlowDirection.right;
-                    fCallback('');
+                    fCallback('', false);
                   }
                 }))
             .toList());
@@ -95,7 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     GlobalStateWidget.of(context)!
                         .crosswordController
                         .flowDirection = FlowDirection.down;
-                    fCallback('');
+                    fCallback('', false);
                   }
                 }))
             .toList());
@@ -142,7 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             content: TextField(
                                 autocorrect: false,
                                 obscureText: true,
-                                obscuringCharacter: '🐊',
+                                obscuringCharacter: '•',
                                 controller: popupController),
                             actions: <Widget>[
                               TextButton(
@@ -153,7 +158,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   onPressed: () => Navigator.pop(context, ''),
                                   child: const Text('Cancel'))
                             ]));
-                
+
                 popupController.dispose();
                 if (enteredToken != null) {
                   setState(() {
