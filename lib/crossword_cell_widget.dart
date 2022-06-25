@@ -102,7 +102,11 @@ class _CrosswordCellState extends State<CrosswordCell> {
     if (_textController.text == widget.character) {
       return 1;
     } else {
-      _textController.text = '';
+      if (_textController.text.isNotEmpty) {
+        setState(() {
+          _fillColor = Colors.pink;
+        });
+      }
       return 0;
     }
   }
