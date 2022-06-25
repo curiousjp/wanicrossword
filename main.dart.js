@@ -33122,7 +33122,7 @@ r.x1$=$.b_()
 r.to$=0
 s.bb(0)},
 RK(a,b){this.d.iM()
-if(!b){this.e.sc_(0,a)
+if(!b||a.length!==0){this.e.sc_(0,a)
 this.E9()}},
 Xd(){var s=this.e
 if(s.a.a===this.a.c)return 1
