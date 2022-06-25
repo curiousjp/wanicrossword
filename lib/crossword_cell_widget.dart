@@ -143,13 +143,16 @@ class _CrosswordCellState extends State<CrosswordCell> {
           spill = newText.substring(1);
           newText = newText.substring(0, 1);
         }
+        textType = newTextType;
         // This will trigger _handleTextEvents once more
+        // unless we disable the handler first...
+        _textController.removeListener(_handleTextEvents);
         _textController.value = _textController.value.copyWith(
             text: newText,
             selection: TextSelection(
                 baseOffset: newText.length, extentOffset: newText.length),
             composing: TextRange.empty);
-        return;
+        _textController.addListener(_handleTextEvents);
       }
     }
 
@@ -167,12 +170,11 @@ class _CrosswordCellState extends State<CrosswordCell> {
             : (nextDown ?? nextRight);
 
         bool changedDirection = false;
-        if (nextPick == nextDown &&
-            _globalCrosswordController!.flowDirection != FlowDirection.down) {
+        if (nextPick == nextDown && flowDirection != FlowDirection.down) {
           _globalCrosswordController!.flowDirection = FlowDirection.down;
           changedDirection = true;
         } else if (nextPick == nextRight &&
-            _globalCrosswordController!.flowDirection != FlowDirection.right) {
+            flowDirection != FlowDirection.right) {
           _globalCrosswordController!.flowDirection = FlowDirection.right;
           changedDirection = true;
         }
