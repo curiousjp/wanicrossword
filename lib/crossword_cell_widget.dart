@@ -91,7 +91,7 @@ class _CrosswordCellState extends State<CrosswordCell> {
   void _focusCallback(String spill, bool changedDirection) {
     _focusNode.requestFocus();
     // typing through
-    if (changedDirection == false) {
+    if (changedDirection == false || spill.isNotEmpty) {
       _textController.text = spill;
       _handleTextEvents();
     }
