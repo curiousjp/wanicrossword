@@ -71,6 +71,12 @@ class _MyHomePageState extends State<MyHomePage> {
           down:
               yPosition < (height - 1) ? (entry.key + width).toString() : null);
     }).toList();
+    final gridView = GridView.count(
+      crossAxisCount: width,
+      childAspectRatio: 1,
+      primary: false,
+      children: cells,
+    );
 
     final acrossList = ListView(
         shrinkWrap: true,
@@ -226,16 +232,14 @@ class _MyHomePageState extends State<MyHomePage> {
               tooltip: 'Login'),
         ]),
         body: Row(children: [
-          Expanded(
-              child: Column(children: [
-            Expanded(
-                child: GridView.count(
-              crossAxisCount: width,
-              childAspectRatio: 1,
-              primary: false,
-              children: cells,
-            ))
-          ])),
+          Expanded(child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+            var ratio = 1.0;
+            if (constraints.maxWidth > constraints.maxHeight) {
+              ratio = constraints.maxHeight / constraints.maxWidth;
+            }
+            return FractionallySizedBox(widthFactor: ratio, child: gridView);
+          })),
           const VerticalDivider(),
           Expanded(
               child: Row(children: [
