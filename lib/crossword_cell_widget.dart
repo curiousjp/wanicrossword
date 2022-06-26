@@ -124,6 +124,7 @@ class _CrosswordCellState extends State<CrosswordCell> {
   }
 
   void _handleResetEvents() {
+    _fillColor = Colors.transparent;
     _textController.text = '';
   }
 

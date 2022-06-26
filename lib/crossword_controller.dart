@@ -12,6 +12,7 @@ class CrosswordController {
 
   FlowDirection flowDirection = FlowDirection.down;
   bool showHints = false;
+  int _scale = 20;
 
   CrosswordController();
 
@@ -20,11 +21,13 @@ class CrosswordController {
     return _currentPuzzle!;
   }
 
-  void createWKHandler(String token) {
-    _wanikaniController = WanikaniHandler(token);
+  void createWKHandler(String token, int scale) {
+    _scale = scale;
+    _wanikaniController = WanikaniHandler(token, scale);
   }
 
   bool get hasHandler => _wanikaniController != null;
+  int get scale => _scale;
 
   CrosswordPuzzle layoutPuzzle() {
     int width = 8;
@@ -79,21 +82,17 @@ class CrosswordController {
       ];
     }
 
-    // sort by length
     clues.shuffle();
-    if (clues.length > 250) {
-      clues = clues.sublist(0, 250);
-    }
     width = clues.map<int>((e) => e[1].length).reduce(max) * 2 + 1;
 
     Stopwatch s = Stopwatch();
 
-    CrosswordPuzzle bestSolution = CrosswordPuzzle(clues, width);
+    CrosswordPuzzle bestSolution = CrosswordPuzzle(clues, width, _scale);
 
     s.start();
     //var bestTime = 0;
     while (s.elapsedMilliseconds < 700) {
-      var newPuzzle = CrosswordPuzzle(clues, width);
+      var newPuzzle = CrosswordPuzzle(clues, width, _scale);
       if (newPuzzle.score > bestSolution.score) {
         bestSolution = newPuzzle;
         //bestTime = s.elapsedMilliseconds;

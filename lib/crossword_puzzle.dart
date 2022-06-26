@@ -151,10 +151,11 @@ class CrosswordPuzzle {
     }
   }
 
-  CrosswordPuzzle(List<List<String>> inputs, this._sideLength) {
+  CrosswordPuzzle(List<List<String>> inputs, this._sideLength, maxItems) {
     _squares = List.generate(_sideLength, (_) => List.filled(_sideLength, ''));
 
     inputs.sort((a, b) => b[1].length.compareTo(a[1].length));
+    var placed = 0;
 
     for (var i = 0; i < inputs.length; i++) {
       // add a '.' to provide a terminating black space
@@ -194,6 +195,7 @@ class CrosswordPuzzle {
         moveScore = possibleStart[3];
       }
 
+      // success!
       final startOffset = (startX + 1) + (startY * _sideLength);
       if (flowDirection == FlowDirection.down) {
         _downClues[startOffset] = inputs[i][0];
@@ -202,6 +204,9 @@ class CrosswordPuzzle {
       }
       _writeWord(startX, startY, currentAnswerTerminated, flowDirection);
       _score += moveScore + 1;
+      if (++placed >= maxItems) {
+        break;
+      }
     }
   }
 

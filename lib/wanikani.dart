@@ -4,13 +4,16 @@ import 'dart:math';
 
 final _rng = Random();
 
+const overFetch = 4;
+
 class WanikaniHandler {
   final String _token;
   final List<List<String>> _burns = [[]];
   bool _loadingBurns = false;
   bool _loadedBurns = false;
+  final int _scale;
 
-  WanikaniHandler(this._token);
+  WanikaniHandler(this._token, this._scale);
 
   Future<List<dynamic>> _loadWKCollection(String apiURI) async {
     final headers = {
@@ -54,9 +57,14 @@ class WanikaniHandler {
 
     final assignments = await _loadWKCollection(
         'https://api.wanikani.com/v2/assignments?burned=true&hidden=false&subject_types=vocabulary');
-    final subjectIDs = assignments
+    var subjectIDs = assignments
         .map<String>((e) => e['data']['subject_id'].toString())
         .toList();
+
+    if (subjectIDs.length > _scale * overFetch) {
+      subjectIDs.shuffle();
+      subjectIDs = subjectIDs.sublist(0, _scale * overFetch);
+    }
 
     List<List<String>> chunkedSubjectIDs = [[]];
     const chunkSize = 100;

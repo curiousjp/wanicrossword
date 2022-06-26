@@ -161,31 +161,63 @@ class _MyHomePageState extends State<MyHomePage> {
               tooltip: 'Show Hints'),
           IconButton(
               onPressed: () async {
-                final popupController = TextEditingController(text: '');
-                final enteredToken = await showDialog<String>(
+                final popupKeyController = TextEditingController(text: '');
+                final popupScaleController = TextEditingController(text: '20');
+                final popupValues = await showDialog<List<dynamic>>(
                     context: context,
                     builder: (BuildContext context) => AlertDialog(
                             title: const Text('Please enter your API key'),
-                            content: TextField(
-                                autocorrect: false,
-                                obscureText: true,
-                                obscuringCharacter: '•',
-                                controller: popupController),
+                            content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextField(
+                                    autocorrect: false,
+                                    obscureText: true,
+                                    obscuringCharacter: '•',
+                                    controller: popupKeyController,
+                                    decoration: const InputDecoration(
+                                        helperText: 'API Key'),
+                                  ),
+                                  TextField(
+                                    autocorrect: false,
+                                    keyboardType: TextInputType.number,
+                                    controller: popupScaleController,
+                                    decoration: const InputDecoration(
+                                        helperText: 'Puzzle Scale'),
+                                  ),
+                                ]),
                             actions: <Widget>[
                               TextButton(
-                                  onPressed: () => Navigator.pop(
-                                      context, popupController.text),
+                                  onPressed: () => Navigator.pop(context, [
+                                        popupKeyController.text,
+                                        int.tryParse(popupScaleController.text)
+                                      ]),
                                   child: const Text('OK')),
                               TextButton(
-                                  onPressed: () => Navigator.pop(context, ''),
+                                  onPressed: () =>
+                                      Navigator.pop(context, ['', 0]),
                                   child: const Text('Cancel'))
                             ]));
 
-                popupController.dispose();
+                popupKeyController.dispose();
+                popupScaleController.dispose();
+
+                if (popupValues == null) {
+                  return;
+                }
+
+                final enteredToken = popupValues[0];
+                final enteredScale = popupValues[1] ?? 50;
+
                 if (enteredToken != null) {
                   setState(() {
+                    GlobalStateWidget.of(context)!.cellValues.clear();
+                    for (var clearCallback
+                        in GlobalStateWidget.of(context)!.resetCallbacks) {
+                      clearCallback();
+                    }
                     GlobalStateWidget.of(context)!.crosswordController
-                      ..createWKHandler(enteredToken.trim())
+                      ..createWKHandler(enteredToken.trim(), enteredScale)
                       ..layoutPuzzle();
                   });
                 }
@@ -195,12 +227,15 @@ class _MyHomePageState extends State<MyHomePage> {
         ]),
         body: Row(children: [
           Expanded(
-              child: GridView.count(
-            crossAxisCount: width,
-            primary: false,
-            shrinkWrap: true,
-            children: cells,
-          )),
+              child: Column(children: [
+            Expanded(
+                child: GridView.count(
+              crossAxisCount: width,
+              childAspectRatio: 1,
+              primary: false,
+              children: cells,
+            ))
+          ])),
           const VerticalDivider(),
           Expanded(
               child: Row(children: [
