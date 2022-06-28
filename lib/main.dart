@@ -1,13 +1,15 @@
-import 'package:crossword/flow_direction.dart';
 import 'package:flutter/material.dart';
 
 import 'global_state_widget.dart';
 import 'crossword_cell_widget.dart';
+import 'flow_direction.dart';
 
 // note to self:
 // git push -u origin main
 // flutter pub global run peanut --extra-args "--base-href=/wanicrossword/"
 // git push origin --set-upstream gh-pages
+
+const version = '0.01';
 
 void main() {
   runApp(GlobalStateWidget(child: const MyApp()));
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WaniCrossword',
+      title: 'WaniCrossword - $version',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -39,38 +41,30 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    // burn the old focus map
-    GlobalStateWidget.of(context)!.focusCallbackMap.clear();
-    // burn the old scoring callbacks
-    GlobalStateWidget.of(context)!.scoringCallbacks.clear();
-    // burn the reset callbacks
-    GlobalStateWidget.of(context)!.resetCallbacks.clear();
+    final globalState = GlobalStateWidget.of(context)!;
 
     // make the tiles
-    final currentPuzzle =
-        GlobalStateWidget.of(context)!.crosswordController.getPuzzle();
+    final currentPuzzle = globalState.crosswordController.getPuzzle();
     final tiles = currentPuzzle.tiles;
     final width = currentPuzzle.size;
-    final height = (tiles.length / width).ceil();
 
     final cells = tiles.asMap().entries.map((entry) {
-      final xPosition = (entry.key % width);
-      final yPosition = (entry.key ~/ width);
-      final offset = entry.key + 1;
+      final squareNumber = entry.key + 1;
+      final coords = globalState.indexToCartesian(squareNumber);
+      final startsAnswer =
+          (currentPuzzle.acrossClues.containsKey(squareNumber) ||
+              currentPuzzle.downClues.containsKey(squareNumber));
+      final currentValue =
+          globalState.cellCurrentValues.get(coords[0], coords[1]) ?? "";
+
       return CrosswordCell(
           character: entry.value,
-          identifier: entry.key.toString(),
-          startValue:
-              GlobalStateWidget.of(context)!.cellValues[entry.key.toString()] ??
-                  "",
-          note: (currentPuzzle.acrossClues.containsKey(offset) ||
-                  currentPuzzle.downClues.containsKey(offset))
-              ? offset.toString()
-              : null,
-          right: xPosition < (width - 1) ? (entry.key + 1).toString() : null,
-          down:
-              yPosition < (height - 1) ? (entry.key + width).toString() : null);
+          xPosition: coords[0],
+          yPosition: coords[1],
+          startValue: currentValue,
+          note: startsAnswer ? squareNumber.toString() : null);
     }).toList();
+
     final gridView = GridView.count(
       crossAxisCount: width,
       childAspectRatio: 1,
@@ -78,158 +72,132 @@ class _MyHomePageState extends State<MyHomePage> {
       children: cells,
     );
 
-    final acrossList = ListView(
+    ListView genClues(Map<int, String> input, FlowDirection orient) => ListView(
         shrinkWrap: true,
         primary: false,
-        children: currentPuzzle.acrossClues.entries
+        children: input.entries
             .map((entry) => ListTile(
                 leading: Text(entry.key.toString()),
                 title: Text(entry.value),
                 onTap: () {
-                  final fCallback = GlobalStateWidget.of(context)!
-                      .focusCallbackMap[(entry.key - 1).toString()];
+                  final coords = globalState.indexToCartesian(entry.key);
+                  final fCallback =
+                      globalState.focusCallbackMap.get(coords[0], coords[1]);
                   if (fCallback != null) {
-                    GlobalStateWidget.of(context)!
-                        .crosswordController
-                        .flowDirection = FlowDirection.right;
+                    globalState.crosswordController.flowDirection = orient;
                     fCallback('', false);
                   }
                 }))
             .toList());
 
-    final downList = ListView(
-        shrinkWrap: true,
-        primary: false,
-        children: currentPuzzle.downClues.entries
-            .map((entry) => ListTile(
-                leading: Text(entry.key.toString()),
-                title: Text(entry.value),
-                onTap: () {
-                  final fCallback = GlobalStateWidget.of(context)!
-                      .focusCallbackMap[(entry.key - 1).toString()];
-                  if (fCallback != null) {
-                    GlobalStateWidget.of(context)!
-                        .crosswordController
-                        .flowDirection = FlowDirection.down;
-                    fCallback('', false);
-                  }
-                }))
-            .toList());
+    final acrossList = genClues(currentPuzzle.acrossClues, FlowDirection.right);
+    final downList = genClues(currentPuzzle.downClues, FlowDirection.down);
 
     return Scaffold(
         appBar: AppBar(title: Text(widget.title), actions: [
           IconButton(
-              onPressed: () {
-                final callbacks =
-                    GlobalStateWidget.of(context)!.scoringCallbacks;
-                final scores = callbacks.map((f) => f()).toList();
-                final score = scores.reduce((a, b) => a + b);
+            icon: const Icon(Icons.scoreboard),
+            tooltip: 'Score',
+            onPressed: () {
+              setState(() {
+                final scoreTuple = globalState.scorePlaystate();
+                final score = scoreTuple[0];
+                final maxScore = scoreTuple[1];
                 showDialog<String>(
                     context: context,
                     builder: (BuildContext context) => AlertDialog(
                             title: const Text('Scoring'),
-                            content: Text(
-                                'Your score is $score out of ${scores.length}.'),
+                            content:
+                                Text('Your score is $score out of $maxScore.'),
                             actions: <Widget>[
                               TextButton(
                                   onPressed: () => Navigator.pop(context, 'OK'),
                                   child: const Text('OK')),
                             ]));
-              },
-              icon: const Icon(Icons.scoreboard),
-              tooltip: 'Score'),
+              });
+            },
+          ),
           IconButton(
-              onPressed: () {
+            icon: const Icon(Icons.autorenew),
+            tooltip: 'Layout Puzzle',
+            onPressed: () {
+              setState(() {
+                globalState.resetPlaystate();
+                globalState.crosswordController.layoutPuzzle();
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.question_mark),
+            tooltip: 'Show Hints',
+            onPressed: () {
+              final hintMode = globalState.crosswordController.showHints;
+              setState(() {
+                globalState.crosswordController.showHints = !hintMode;
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.key),
+            tooltip: 'Login',
+            onPressed: () async {
+              final popupKeyController = TextEditingController(text: '');
+              final popupScaleController = TextEditingController(text: '20');
+              final popupValues = await showDialog<List<dynamic>>(
+                  context: context,
+                  builder: (BuildContext context) => AlertDialog(
+                          title: const Text('Please enter your API key'),
+                          content:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                            TextField(
+                              autocorrect: false,
+                              obscureText: true,
+                              obscuringCharacter: '•',
+                              controller: popupKeyController,
+                              decoration:
+                                  const InputDecoration(helperText: 'API Key'),
+                            ),
+                            TextField(
+                              autocorrect: false,
+                              keyboardType: TextInputType.number,
+                              controller: popupScaleController,
+                              decoration: const InputDecoration(
+                                  helperText: 'Puzzle Scale'),
+                            ),
+                          ]),
+                          actions: <Widget>[
+                            TextButton(
+                                onPressed: () => Navigator.pop(context, [
+                                      popupKeyController.text,
+                                      int.tryParse(popupScaleController.text)
+                                    ]),
+                                child: const Text('OK')),
+                            TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(context, ['', 0]),
+                                child: const Text('Cancel'))
+                          ]));
+
+              popupKeyController.dispose();
+              popupScaleController.dispose();
+
+              if (popupValues == null) {
+                return;
+              }
+
+              final enteredToken = popupValues[0];
+              final enteredScale = popupValues[1] ?? 50;
+
+              if (enteredToken != null) {
                 setState(() {
-                  GlobalStateWidget.of(context)!.cellValues.clear();
-                  for (var clearCallback
-                      in GlobalStateWidget.of(context)!.resetCallbacks) {
-                    clearCallback();
-                  }
-                  GlobalStateWidget.of(context)!
-                      .crosswordController
-                      .layoutPuzzle();
+                  globalState.resetPlaystate();
+                  globalState.crosswordController
+                    ..createWKHandler(enteredToken.trim(), enteredScale)
+                    ..layoutPuzzle();
                 });
-              },
-              icon: const Icon(Icons.autorenew),
-              tooltip: 'Layout Puzzle'),
-          IconButton(
-              onPressed: () {
-                final hintMode = GlobalStateWidget.of(context)!
-                    .crosswordController
-                    .showHints;
-                setState(() {
-                  GlobalStateWidget.of(context)!.crosswordController.showHints =
-                      !hintMode;
-                });
-              },
-              icon: const Icon(Icons.question_mark),
-              tooltip: 'Show Hints'),
-          IconButton(
-              onPressed: () async {
-                final popupKeyController = TextEditingController(text: '');
-                final popupScaleController = TextEditingController(text: '20');
-                final popupValues = await showDialog<List<dynamic>>(
-                    context: context,
-                    builder: (BuildContext context) => AlertDialog(
-                            title: const Text('Please enter your API key'),
-                            content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TextField(
-                                    autocorrect: false,
-                                    obscureText: true,
-                                    obscuringCharacter: '•',
-                                    controller: popupKeyController,
-                                    decoration: const InputDecoration(
-                                        helperText: 'API Key'),
-                                  ),
-                                  TextField(
-                                    autocorrect: false,
-                                    keyboardType: TextInputType.number,
-                                    controller: popupScaleController,
-                                    decoration: const InputDecoration(
-                                        helperText: 'Puzzle Scale'),
-                                  ),
-                                ]),
-                            actions: <Widget>[
-                              TextButton(
-                                  onPressed: () => Navigator.pop(context, [
-                                        popupKeyController.text,
-                                        int.tryParse(popupScaleController.text)
-                                      ]),
-                                  child: const Text('OK')),
-                              TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, ['', 0]),
-                                  child: const Text('Cancel'))
-                            ]));
-
-                popupKeyController.dispose();
-                popupScaleController.dispose();
-
-                if (popupValues == null) {
-                  return;
-                }
-
-                final enteredToken = popupValues[0];
-                final enteredScale = popupValues[1] ?? 50;
-
-                if (enteredToken != null) {
-                  setState(() {
-                    GlobalStateWidget.of(context)!.cellValues.clear();
-                    for (var clearCallback
-                        in GlobalStateWidget.of(context)!.resetCallbacks) {
-                      clearCallback();
-                    }
-                    GlobalStateWidget.of(context)!.crosswordController
-                      ..createWKHandler(enteredToken.trim(), enteredScale)
-                      ..layoutPuzzle();
-                  });
-                }
-              },
-              icon: const Icon(Icons.key),
-              tooltip: 'Login'),
+              }
+            },
+          ),
         ]),
         body: Row(children: [
           Expanded(child: LayoutBuilder(
